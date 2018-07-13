@@ -11,11 +11,9 @@ def period_plus_minus_prep(game_pbp, game_lineups, period, team_1, team_2):
 	"""
 	period_pbp = game_pbp.loc[game_pbp.Period == period].copy().reset_index(drop = True)
 	team_1_starters = game_lineups.loc[(game_lineups.Period == period) &
-									   (game_lineups.Team_id == team_1)].\
-									   Person_id.values
+		(game_lineups.Team_id == team_1)].Person_id.values
 	team_2_starters = game_lineups.loc[(game_lineups.Period == period) &
-									   (game_lineups.Team_id == team_2)].\
-									   Person_id.values
+		(game_lineups.Team_id == team_2)].Person_id.values
 	
 	t1_players = team_1_starters
 	t2_players = team_2_starters
@@ -160,14 +158,14 @@ def all_games_plus_minus(pbp, lineups):
 	for game in unique_games:
 		game_pbp = pbp.loc[pbp.Game_id == game].copy().reset_index(drop = True)
 		game_pbp.sort_values(by = ['Period', 'PC_Time', 'WC_Time', 'Event_Num'],
-							 ascending=[True, False, True, True], inplace = True)
+			ascending=[True, False, True, True], inplace = True)
 
 		game_lineups = lineups.loc[lineups.Game_id == game].copy().reset_index(drop = True)
 
 		gpmd = get_game_plus_minus(game_pbp, game_lineups=game_lineups)
 		temp_game = pd.DataFrame.from_dict(gpmd, orient = 'index',
-										  columns = ['Player_Plus/Minus']).reset_index().\
-										rename(columns = {'index':'Player_ID'})
+			columns = ['Player_Plus/Minus']).reset_index().rename(columns = {'index':'Player_ID'})
+		
 		temp_game.insert(0, column='Game_ID', value = pd.Series([game]*len(temp_game)))
 		gpmd_df = pd.concat([gpmd_df, temp_game])
 
