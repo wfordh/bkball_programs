@@ -83,3 +83,55 @@ def get_nba_stats(stat_level, league_id = '00', measure_type = 'Base',
     df.rename(columns = {'min':'minutes'}, inplace = True)
 
     return df
+
+def scrape_inpredict_possessions(year_start = 2017, year_end = 2017,
+                                 defense = False):
+    base_url = "http://stats.inpredictable.com/nba/ssnTeamPoss.php?"
+    inpredict_params = {'view':'def'} if defense else {'view':'off'}
+    column_headers = ['Season',
+        'Team',
+        'Gms',
+        'tot_poss',
+        'tot_secs',
+        'tot_secs_rk',
+        'tot_pts',
+        'tot_pts_rk',
+        'after_fgM_%',
+        'after_fgM_secs',
+        'after_fgM_secs_rk',
+        'after_fgM_pts',
+        'after_fgM_pts_rk',
+        'after_drb_%',
+        'after_drb_secs',
+        'after_drb_secs_rk',
+        'after_drb_pts',
+        'after_drb_pts_rk',
+        'after_tov_%',
+        'after_tov_secs',
+        'after_tov_secs_rk',
+        'after_tov_pts',
+        'after_tov_pts_rk']
+    
+    final_data = list()
+    final_data.append(column_headers)
+    
+    for season in np.arange(year_start, year_end + 1):
+        time.sleep(np.random.randint(1, 3))
+        inpredict_params['season'] = season
+        r = requests.get(base_url, inpredict_params)
+        soup = BeautifulSoup(r.content, 'html.parser')
+        data_rows = soup.find_all('tr')[3:]
+        raw_data = [[td.get_text() for td in data_rows[i]][1:] for i in np.arange(len(data_rows))][:-2]
+        [row.insert(0, season+1) for row in raw_data]
+        
+        final_data.extend(raw_data)
+        
+    return final_data
+
+def write_nba_data(data, filename):
+    from pathlib import Path
+    
+    filepath = Path("/Users/fordhiggins/basketball/analytics/data/")
+    with open(filepath/filename, 'w') as outfile:
+        wr = csv.writer(outfile, quoting = csv.QUOTE_ALL)
+        wr.writerows(data)
