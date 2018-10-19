@@ -56,20 +56,21 @@ def swap_rows(period_pbp):
 	but before any other events, resolving the issue of a player being 
 	miscredited for plus/minus
 	"""
-	period_pbpc = period_pbp.copy()
-	
-	for idx, row in period_pbpc.iterrows():
-		# just to get around last index/index out of bounds issues
-		try:
-			if (row.Event_Msg_Type == 8) & (period_pbpc.loc[idx+1].Event_Msg_Type == 3):
-				temp1 = row.copy().values
-				temp2 = period_pbpc.loc[idx+1].copy().values
-				period_pbpc.loc[idx] = temp2
-				period_pbpc.loc[idx+1] = temp1
-		except:
-			pass
-			
-	return period_pbpc
+	period_pbp_matrix = np.array([period_pbp.Event_Msg_Type]).T
+    period_pbpc = period_pbp.copy()
+    new_index = period_pbpc.index.values.tolist()
+    
+    for i, x in enumerate(np.nditer(period_pbp_matrix)):
+        try:
+            if (x == 8) & (period_pbp_matrix[i+1] == 3):
+                temp1 = i
+                temp2 = i+1
+                new_index[i] = temp2
+                new_index[i+1] = temp1
+        except:
+            pass
+    
+    return period_pbpc.reindex(new_index).reset_index(drop=True)
 
 
 def track_stint_subs(period_pbp, t1_players, t2_players):
@@ -78,30 +79,30 @@ def track_stint_subs(period_pbp, t1_players, t2_players):
 	who is on the court after the substitution occurs
 	"""
 	oncourt = list()
-	stint = 0
-	stint_list = list()
-	period_pbpc = period_pbp.copy()
-	
-	for idx, row in period_pbpc.iterrows():
-		if row.Event_Msg_Type == 8:				
-			try:
-				t1_players[np.where(t1_players == row.Person1)[0][0]] = row.Person2
-			except:
-				t2_players[np.where(t2_players == row.Person1)[0][0]] = row.Person2
-			oncourt.append(np.append(t1_players, t2_players))
-			
-			if period_pbpc.loc[idx-1].Event_Msg_Type == 8:
-				stint_list.append(stint)
-			else:
-				stint += 1
-				stint_list.append(stint)
-		else:
-			# keep the same players
-			oncourt.append(np.append(t1_players, t2_players))
-			stint_list.append(stint)
-			
-	return stint_list, oncourt
-
+    stint = 0
+    stint_list = list()
+    period_pbpc = period_pbp.copy()
+    period_pbp_matrix = np.array([period_pbpc.Event_Msg_Type, period_pbpc.Person1, period_pbpc.Person2]).T
+    
+    for i, x in enumerate(period_pbp_matrix):
+        if x[0] == 8:
+            try:
+                t1_players[np.where(t1_players == x[1])[0][0]] = x[2]
+            except:
+                t2_players[np.where(t2_players == x[1])[0][0]] = x[2]
+            oncourt.append(np.append(t1_players, t2_players))
+            
+            if period_pbp_matrix[i-1, 0] == 8:
+                stint_list.append(stint)
+            else:
+                stint += 1
+                stint_list.append(stint)
+        else:
+            # keep the same players
+            oncourt.append(np.append(t1_players, t2_players))
+            stint_list.append(stint)
+    
+    return stint_list, oncourt
 
 def compute_period_plus_minus(period_pbp, player_plus_minus_dict):
 	"""
