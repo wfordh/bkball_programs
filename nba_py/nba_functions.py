@@ -129,22 +129,18 @@ def scrape_inpredict_possessions(year_start = 2017, year_end = 2017,
 		
 	return final_data
 
-def write_nba_data(data, filename):
-	from pathlib import Path
-	
-	filepath = Path("~/basketball/analytics/data/")
-	with open(filepath/filename, 'w') as outfile:
-		wr = csv.writer(outfile, quoting = csv.QUOTE_ALL)
-		wr.writerows(data)
 		
 def get_game_data(base_url, params, headers = nba_headers):
 	data = requests.get(base_url, params=params, headers=headers)
 	return data.json()['resultSets'][0]['rowSet'], data.json()['resultSets'][0]['headers']
 
-def get_game_ids(params = nba_params, headers = nba_headers):
+def get_game_ids(params = scoreboard_params, headers = nba_headers):
 	base_url = "http://stats.nba.com/stats/scoreboardv2/"
 	data = requests.get(base_url, params=params, headers=headers)
-	game_ids = [x[0] for x in data.json()['resultSets'][6]['rowSet']]
+	if params['LeagueID'] == '00':
+		game_ids = [x[0] for x in data.json()['resultSets'][6]['rowSet']]
+	else: 
+		game_ids = [x[2] for x in data.json()['resultSets'][0]['rowSet']]
 	return game_ids
 
 
