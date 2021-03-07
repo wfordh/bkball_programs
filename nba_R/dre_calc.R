@@ -1,17 +1,18 @@
 library(jsonlite)
 library(stringr)
 library(purrr)
+# only pick out necessary tidyverse packages
 library(tidyverse)
 library(magrittr)
 
-nba_dre <- function(df) {
+nba_dre <- function(df, minutes_regression=200) {
   # check if minutes over 200 for mean regression
   # new eqn: -8.424 + .792*pts - .719*2pa - .552*3pa - .159*fta + .135*orb + .400*drb 
   # + .544*ast + 1.68*stl + .764*blk - 1.36*tov - .108*pf
   # 
   
   df %<>% mutate(fg2a = fga - fg3a,
-                 dre = if_else(min > 400, 
+                 dre = if_else(min > minutes_regression, 
                                -8.424 + .792*pts - .719*fg2a - .552*fg3a - .159*fta - 1.36*tov 
                                + .135*oreb + .4*dreb + 1.68*stl + .764*blk + .544*ast -.108*pf, 
                                -2.0*(400 - min)/400 + (min/400)*(-8.424 + .792*pts - .719*fg2a - .552*fg3a 
@@ -23,6 +24,14 @@ nba_dre <- function(df) {
   #df <- cbind(df, dre)
 }
 
+get_rel_efg <- function(player_stats) {
+  return(player_stats %>% 
+    select(c("fga", "fgm", "fg3m")) %>% 
+    summarise_all(sum) %>% 
+    transmute(lg_efg = (fgm + 0.5*fg3m) / fga)
+  )
+}
+
 # SPR formula (All per-100 except GS%)
 
 # PTS-1.2*TOV+0.7*BLK+1.5*STL+0.5*AST+0.2*DRB+0.3*ORB-0.3*FTA- 2PA - 0.8*3PA + GamesStarted% x 2.2 - 7.9
@@ -31,39 +40,47 @@ nba_dre <- function(df) {
 # do I need the below stuff? can now just read in most of it
 # stats go back to 07-08
 
-url_totals <- paste0("http://stats.nbadleague.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=",
-        "&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=20&Location=&MeasureType=Base&Month=",
-        "0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=",
-        "N&Rank=N&Season=2017-18&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=0&VsConference=",
-        "&VsDivision=&Weight=")
-url_totals <- fromJSON(url_totals)
-head_totals <- tolower(url_totals$resultSets$headers[1][[1]])
-stats_totals <- as.data.frame(url_totals$resultSets$rowSet)
-names(stats_totals) <- head_totals
 
-url_per100 <- paste0("http://stats.nbadleague.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=",
-        "&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=20&Location=&MeasureType=Base",
-        "&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Per100Possessions&Period=0&PlayerExperience=",
-        "&PlayerPosition=&PlusMinus=N&Rank=N&Season=2017-18&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=",
-        "&StarterBench=&TeamID=0&VsConference=&VsDivision=&Weight=")
-url_per100 <- fromJSON(url_per100)
-head_per100 <- tolower(url_per100$resultSets$headers[1][[1]])
-stats_per100 <- as.data.frame(url_per100$resultSets$rowSet)
-names(stats_per100) <- head_per100
-stats_per100 <- stats_per100[1:33]
+# Other things to add to table: rel eFG%
 
-# Overwrite per 100 minutes with total minutes
-stats_per100[10] <- stats_totals[10]
-
-cols <- c(5:33)
-stats_per100[, cols] <- map(stats_per100[, cols], function(x) as.numeric(as.character(x)))
-## OR stats[, cols] <- as.numeric(as.character(unlist(stats[, cols])))
-stats_per100[10] <- round(stats_per100[10], 2)
-
-hello <- nba_dre(stats_per100)
-View(hello)
-
-write.csv(hello, file = "/Users/fordhiggins/basketball/Analytics/data/nbadl_dre_2018.csv")
+get_gleague_dre_stats <- function(year, save_dre=TRUE, minutes=200) {
+  season <- paste0(as.character(year), "-", substr(as.character(year+1), 3, 4))
+  url_totals <- paste0("http://stats.nbadleague.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=",
+          "&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=20&Location=&MeasureType=Base&Month=",
+          "0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=",
+          "N&Rank=N&Season=", season, "&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=0&VsConference=",
+          "&VsDivision=&Weight=")
+  url_totals <- fromJSON(url_totals)
+  head_totals <- tolower(url_totals$resultSets$headers[1][[1]])
+  stats_totals <- as.data.frame(url_totals$resultSets$rowSet)
+  names(stats_totals) <- head_totals
+  
+  url_per100 <- paste0("http://stats.nbadleague.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=",
+          "&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=20&Location=&MeasureType=Base",
+          "&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Per100Possessions&Period=0&PlayerExperience=",
+          "&PlayerPosition=&PlusMinus=N&Rank=N&Season=", season, "&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=",
+          "&StarterBench=&TeamID=0&VsConference=&VsDivision=&Weight=")
+  url_per100 <- fromJSON(url_per100)
+  head_per100 <- tolower(url_per100$resultSets$headers[1][[1]])
+  stats_per100 <- as.data.frame(url_per100$resultSets$rowSet)
+  names(stats_per100) <- head_per100
+  stats_per100 <- stats_per100[1:33]
+  
+  # Overwrite per 100 minutes with total minutes
+  stats_per100[10] <- stats_totals[10]
+  
+  cols <- c(5:33)
+  stats_per100[, cols] <- map(stats_per100[, cols], function(x) as.numeric(as.character(x)))
+  ## OR stats[, cols] <- as.numeric(as.character(unlist(stats[, cols])))
+  stats_per100[10] <- round(stats_per100[10], 2)
+  
+  dre_stats <- nba_dre(stats_per100)
+  
+  if (save_dre) {
+    write.csv(dre_stats, file = paste0("~/basketball/analytics/data/nbadl_dre_", season, ".csv"))
+  }
+  return(dre_stats)
+}
 
 ## All Years
 
