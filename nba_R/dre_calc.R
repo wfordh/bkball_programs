@@ -24,12 +24,30 @@ nba_dre <- function(df, minutes_regression=200) {
   #df <- cbind(df, dre)
 }
 
-get_rel_efg <- function(player_stats) {
+get_lg_efg <- function(player_stats) {
   return(player_stats %>% 
     select(c("fga", "fgm", "fg3m")) %>% 
     summarise_all(sum) %>% 
     transmute(lg_efg = (fgm + 0.5*fg3m) / fga)
   )
+}
+
+get_lg_ts <- function(player_stats, year){
+  if (year >= 2019) {
+    ts_coef <- 0.692
+  } else {
+    ts_coef <- 0.44
+  }
+  return(player_stats %>% 
+           select(c("fga", "pts", "fta")) %>% 
+           summarise_all(sum) %>% 
+           transmute(lg_ts = if_else(
+             year >= 2019,
+             pts / (2*(fga + 0.692*fta)),
+             pts / (2*(fga + 0.44*fta))
+             )
+             )
+         )
 }
 
 # SPR formula (All per-100 except GS%)
@@ -41,9 +59,11 @@ get_rel_efg <- function(player_stats) {
 # stats go back to 07-08
 
 
-# Other things to add to table: rel eFG%
+# Other things to add to table: rel eFG%, PER? plus minus? 
+# remove all the per 100 numbers?
+# try to get games started from the box scores?
 
-get_gleague_dre_stats <- function(year, save_dre=TRUE, minutes=200) {
+get_gleague_dre_stats <- function(year, save_dre=TRUE, minutes_limit=200) {
   season <- paste0(as.character(year), "-", substr(as.character(year+1), 3, 4))
   url_totals <- paste0("http://stats.nbadleague.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=",
           "&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=20&Location=&MeasureType=Base&Month=",
@@ -73,11 +93,29 @@ get_gleague_dre_stats <- function(year, save_dre=TRUE, minutes=200) {
   stats_per100[, cols] <- map(stats_per100[, cols], function(x) as.numeric(as.character(x)))
   ## OR stats[, cols] <- as.numeric(as.character(unlist(stats[, cols])))
   stats_per100[10] <- round(stats_per100[10], 2)
+  stats_per100 %<>% filter(min >= minutes_limit)
   
   dre_stats <- nba_dre(stats_per100)
+  lg_ts <- get_lg_ts(dre_stats, year = year)$lg_ts
+  lg_efg <- get_lg_efg(dre_stats)$lg_efg
+  
+  # round the relative stats?
+  dre_stats %<>% 
+    mutate(rel_efg = (((fgm + 0.5*fg3m) / fga) - lg_efg) / lg_efg,
+           stk = blk + stl
+           )
+  if (year >= 2019) {
+    dre_stats %<>% 
+      mutate(rel_ts = ((pts / (2*(fga + 0.692*fta))) - lg_ts ) / lg_ts)
+  } else {
+    dre_stats %<>% 
+      mutate(rel_ts = ((pts / (2*(fga + 0.44*fta))) - lg_ts) / lg_ts)
+  }
+  dre_stats %<>% select(c("player_name", "team_abbreviation", "age", "gp", "min", "dre", "rel_efg", "rel_ts", "stk", "plus_minus"))
   
   if (save_dre) {
     write.csv(dre_stats, file = paste0("~/basketball/analytics/data/nbadl_dre_", season, ".csv"))
+    print(paste0("DRE for ", season, " saved!"))
   }
   return(dre_stats)
 }
