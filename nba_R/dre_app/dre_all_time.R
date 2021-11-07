@@ -138,6 +138,8 @@ nbadl_padv[nbadl_padv$age == 109 & nbadl_padv$player_id == 200963, "age"] <- 27
 
 pace <- nbadl_padv %>% select(player_id, year, pace)
 
+# pbt = player basic totals
+
 nbadl_pbt_car <- tibble()
 nbadl_pbt_car <- nbadl_pbt %>% 
   group_by(player_id) %>%
@@ -159,6 +161,7 @@ nbadl_pbt_car <- nbadl_pbt %>%
 
 
 nbadl_pp100_car <- nbadl_pbt_car
+# player per 100 possessions columns
 pp100_cols <- c(8:25, 29:30)
 
 # need to find total possession for each year first
