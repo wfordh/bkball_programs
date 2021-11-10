@@ -24,7 +24,7 @@ get_nba_stats_json <- function(url) {
     `Cache-Control` = 'no-cache'
   )
   
-  res <- httr::RETRY("GET", nba_pbt_url,
+  res <- httr::RETRY("GET", url,
                      httr::add_headers(.headers = headers))
   
   stats_json <- res$content %>%
@@ -125,30 +125,29 @@ get_gleague_dre_stats <-
     }
     url_totals <-
       paste0(
-        "http://stats.nbadleague.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=",
-        "&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=20&Location=&MeasureType=Base&Month=",
-        "0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=",
-        "N&Rank=N&Season=",
-        season,
-        "&SeasonSegment=&SeasonType=",
-        season_type,
-        "&ShotClockRange=&StarterBench=&TeamID=0&VsConference=",
-        "&VsDivision=&Weight="
+        "http://stats.nba.com/stats/leaguedashplayerstats?Conference=&DateFrom=&DateTo=&Division=&GameScope=&GameSegment=",
+        "&LastNGames=0&LeagueID=20&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N",
+        "&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=",season,"&SeasonSegment=",
+        "&SeasonType=", season_type, "&ShotClockRange=&StarterBench=&TeamID=0&VsConference=&VsDivision="
       )
     totals_json <- get_nba_stats_json(url_totals)
     stats_totals <- nba_json2df(totals_json)
     
     url_per100 <-
       paste0(
-        "http://stats.nbadleague.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=",
-        "&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=20&Location=&MeasureType=Base",
-        "&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Per100Possessions&Period=0&PlayerExperience=",
-        "&PlayerPosition=&PlusMinus=N&Rank=N&Season=",
-        season,
-        "&SeasonSegment=&SeasonType=",
-        season_type,
-        "&ShotClockRange=",
-        "&StarterBench=&TeamID=0&VsConference=&VsDivision=&Weight="
+        "http://stats.nba.com/stats/leaguedashplayerstats?Conference=&DateFrom=&DateTo=&Division=&GameScope=&GameSegment=",
+        "&LastNGames=0&LeagueID=20&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N",
+        "&PerMode=Per100Possessions&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=",season,"&SeasonSegment=",
+        "&SeasonType=", season_type, "&ShotClockRange=&StarterBench=&TeamID=0&VsConference=&VsDivision="
+        #"http://stats.nbadleague.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=",
+        #"&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=20&Location=&MeasureType=Base",
+        #"&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Per100Possessions&Period=0&PlayerExperience=",
+        #"&PlayerPosition=&PlusMinus=N&Rank=N&Season=",
+        #season,
+        #"&SeasonSegment=&SeasonType=",
+        #season_type,
+        #"&ShotClockRange=",
+        #"&StarterBench=&TeamID=0&VsConference=&VsDivision=&Weight="
       )
     per100_json <- get_nba_stats_json(url_per100)
     stats_per100 <- nba_json2df(per100_json)
@@ -179,11 +178,11 @@ get_gleague_dre_stats <-
     if (year >= 2019) {
       dre_stats %<>%
         mutate(ts = 100.0 * (pts / (2 * (fga + 0.692 * fta))),
-               rel_ts = 100.0 * (ts / lg_ts) #/ lg_ts)
+               rel_ts = 100.0 * (ts / lg_ts)) #/ lg_ts)
     } else {
       dre_stats %<>%
         mutate(ts = 100.0 * (pts / (2 * (fga + 44 * fta))),
-               rel_ts = 100.0 * (ts / lg_ts) #/ lg_ts)
+               rel_ts = 100.0 * (ts / lg_ts)) #/ lg_ts)
     }
     
     dre_stats %<>% select(

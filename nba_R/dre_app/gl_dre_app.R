@@ -1,4 +1,4 @@
-
+library(shiny)
 # save data when year is done so it can be pulled from there instead of re-calling the 
 # functions over and over
 source("dre_calc.R")
@@ -67,7 +67,7 @@ server <- function(input, output) {
 		read.csv(
 		  paste0("./data/nbadl_dre_", as.character(input$Year), "-", substr(as.character(as.integer(input$Year)+1), 3, 4), ".csv")
 		  ) %>%
-		filter(min > input$Minutes)
+		dplyr::filter(min > input$Minutes)
 	})
 	}
 
