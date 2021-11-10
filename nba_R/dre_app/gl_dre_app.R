@@ -5,7 +5,7 @@ source("dre_calc.R")
 
 # will need to update logic for beginning of next season
 dt <- Sys.Date()
-if (as.integer(format(dt, "%M")) > 10) {
+if (as.integer(format(dt, "%m")) > 10) {
     current_year <- as.integer(format(dt, "%Y"))
 } else {
     current_year <- as.integer(format(dt, "%Y")) - 1
