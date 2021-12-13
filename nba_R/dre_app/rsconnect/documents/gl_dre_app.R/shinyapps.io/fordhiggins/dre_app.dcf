@@ -5,9 +5,10 @@ account: fordhiggins
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 3783708
-bundleId: 4391149
+bundleId: 5363941
 url: https://fordhiggins.shinyapps.io/dre_app/
-when: 1616620199.50413
+when: 1639350179.95456
+lastSyncTime: 1639350179.95457
 asMultiple: FALSE
 asStatic: FALSE
 ignoredFiles: dre_all_time.R

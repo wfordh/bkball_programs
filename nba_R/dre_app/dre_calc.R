@@ -153,14 +153,16 @@ get_gleague_dre_stats <-
     stats_per100 <- nba_json2df(per100_json)
     
     # Overwrite per 100 minutes with total minutes
-    stats_per100[10] <- stats_totals[10]
+    stats_per100$min <- stats_totals$min
     
-    cols <- c(5:33)
+    # is there a way to do this with names without listing all of them out?
+    # does this need to be 6-34??
+    cols <- c(6:33)
     stats_per100[, cols] <-
       map(stats_per100[, cols], function(x)
         as.numeric(as.character(x)))
     ## OR stats[, cols] <- as.numeric(as.character(unlist(stats[, cols])))
-    stats_per100[10] <- round(stats_per100[10], 2)
+    stats_per100$min <- round(stats_per100$min, 2)
     stats_per100 %<>% dplyr::filter(min >= minutes_limit)
     
     dre_stats <- nba_dre(stats_per100)
