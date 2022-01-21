@@ -102,7 +102,16 @@ get_lg_ts <- function(player_stats, year) {
 
 # do I need the below stuff? can now just read in most of it
 # stats go back to 07-08
-
+construct_nba_url <- function(season, season_type, league, per_mode, measure_type) {
+  return(
+    paste0(
+      "http://stats.nba.com/stats/leaguedashplayerstats?Conference=&DateFrom=&DateTo=&Division=&GameScope=&GameSegment=",
+      "&LastNGames=0&LeagueID=", league, "&Location=&MeasureType=", measure_type, "&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N",
+      "&PerMode=", per_mode, "&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=",season,"&SeasonSegment=",
+      "&SeasonType=", season_type, "&ShotClockRange=&StarterBench=&TeamID=0&VsConference=&VsDivision="
+    )
+    )
+}
 
 # Other things to add to table: rel eFG%, PER? plus minus?
 # remove all the per 100 numbers?
@@ -119,36 +128,16 @@ get_gleague_dre_stats <-
     # will need to pull the "Advanced" numbers as well to get pace
     # can do pace * min to get total possessions and then do weighted average to get to per 100 poss?
     if (year > 2020) {
-      season_type <- "Showcase"
+      season_type <- c("Showcase", "Regular+Season")
+      # stack season totals on top of each other and then join pace onto them and collapse down
     } else {
       season_type <- "Regular+Season"
     }
-    url_totals <-
-      paste0(
-        "http://stats.nba.com/stats/leaguedashplayerstats?Conference=&DateFrom=&DateTo=&Division=&GameScope=&GameSegment=",
-        "&LastNGames=0&LeagueID=20&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N",
-        "&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=",season,"&SeasonSegment=",
-        "&SeasonType=", season_type, "&ShotClockRange=&StarterBench=&TeamID=0&VsConference=&VsDivision="
-      )
+    url_totals <- construct_nba_url(year, season_type, 20, "Totals", "Base")
     totals_json <- get_nba_stats_json(url_totals)
     stats_totals <- nba_json2df(totals_json)
     
-    url_per100 <-
-      paste0(
-        "http://stats.nba.com/stats/leaguedashplayerstats?Conference=&DateFrom=&DateTo=&Division=&GameScope=&GameSegment=",
-        "&LastNGames=0&LeagueID=20&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N",
-        "&PerMode=Per100Possessions&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=",season,"&SeasonSegment=",
-        "&SeasonType=", season_type, "&ShotClockRange=&StarterBench=&TeamID=0&VsConference=&VsDivision="
-        #"http://stats.nbadleague.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=",
-        #"&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=20&Location=&MeasureType=Base",
-        #"&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Per100Possessions&Period=0&PlayerExperience=",
-        #"&PlayerPosition=&PlusMinus=N&Rank=N&Season=",
-        #season,
-        #"&SeasonSegment=&SeasonType=",
-        #season_type,
-        #"&ShotClockRange=",
-        #"&StarterBench=&TeamID=0&VsConference=&VsDivision=&Weight="
-      )
+    url_per100 <- construct_nba_url(year, season_type, 20, "Per100Possessions", "Base")
     per100_json <- get_nba_stats_json(url_per100)
     stats_per100 <- nba_json2df(per100_json)
     
