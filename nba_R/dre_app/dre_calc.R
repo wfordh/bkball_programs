@@ -88,11 +88,9 @@ get_lg_ts <- function(player_stats, year) {
   return(player_stats %>%
            select(c("fga", "pts", "fta")) %>%
            summarise_all(sum) %>%
-           transmute(lg_ts = if_else(
-             year >= 2019,
-             100.0 * pts / (2 * (fga + 0.692 * fta)),
-             100.0 * pts / (2 * (fga + 0.44 * fta))
-           )))
+           transmute(lg_ts = 
+             100.0 * pts / (2 * (fga + ts_coef * fta))
+           ))
 }
 
 # SPR formula (All per-100 except GS%)
@@ -100,7 +98,6 @@ get_lg_ts <- function(player_stats, year) {
 # PTS-1.2*TOV+0.7*BLK+1.5*STL+0.5*AST+0.2*DRB+0.3*ORB-0.3*FTA- 2PA - 0.8*3PA + GamesStarted% x 2.2 - 7.9
 # GamesStarted would need to be scraped from basketball-reference
 
-# do I need the below stuff? can now just read in most of it
 # stats go back to 07-08
 construct_nba_url <- function(season, season_type, league, per_mode, measure_type) {
   return(
@@ -128,33 +125,84 @@ get_gleague_dre_stats <-
     # will need to pull the "Advanced" numbers as well to get pace
     # can do pace * min to get total possessions and then do weighted average to get to per 100 poss?
     if (year > 2020) {
+      totals_tbl <- tibble()
+      adv_tbl <- tibble()
+      full_season_tbl <- tibble()
       season_type <- c("Showcase", "Regular+Season")
       # stack season totals on top of each other and then join pace onto them and collapse down
+      for (st in season_type){
+        url_totals <- construct_nba_url(season, st, 20, "Totals", "Base")
+        totals_json <- get_nba_stats_json(url_totals)
+        stats_totals <- nba_json2df(totals_json)
+        stats_totals$season_type <- st
+        
+        totals_tbl %<>% bind_rows(stats_totals)
+        
+        url_adv <- construct_nba_url(season, st, 20, "Totals", "Advanced")
+        adv_json <- get_nba_stats_json(url_adv)
+        stats_adv <- nba_json2df(adv_json)
+        stats_adv$season_type <- st
+        
+        adv_tbl %<>% bind_rows(stats_adv)
+      }
+      # make into a function?
+      numeric_cols = c(6:33)
+      totals_tbl[, numeric_cols] <- map(totals_tbl[, numeric_cols], function(x) as.numeric(as.character(x)))
+      totals_tbl %<>% 
+        left_join(
+            select(adv_tbl, player_id, season_type, pace, team_abbreviation # not sure having team abbrev will work - might have more than one team?
+                   )
+          ) %>%
+        group_by(player_id) %>%
+        transmute(player_name = player_name,
+                  team_abbreviation = max(team_abbreviation),
+                  age = max(age),
+                  gp = sum(gp), w = sum(w), l = sum(l), poss = sum(min*as.double(pace)/48), min = max(min),
+                  fgm = sum(fgm), fga = sum(fga), fg3m = sum(fg3m), fg3a = sum(fg3a),
+                  ftm = sum(ftm), fta = sum(fta), oreb = sum(oreb), dreb = sum(dreb),
+                  reb = sum(reb), ast = sum(ast), tov = sum(tov), stl = sum(stl), 
+                  blk = sum(blk), blka = sum(blka), pf = sum(pf), pfd = sum(pfd), 
+                  pts = sum(pts), plus_minus = sum(plus_minus), 
+                  fg_pct = if_else(fga == 0, 0, fgm/as.numeric(fga)),
+                  fg3_pct = if_else(fg3a == 0, 0, fg3m/as.numeric(fg3a)),
+                  ft_pct = if_else(ftm == 0, 0, ftm/as.numeric(fta)),
+                  fg2m = fgm - fg3m, fg2a = fga - fg3a,
+                  fg2_pct = if_else(fg2a == 0, 0, fg2m/as.numeric(fg2a))
+        ) %>% 
+        distinct(player_id, .keep_all = T)
+      # taking these column numbers from dre_all_time...
+      # may need to be updated. is there a way to do a list of names instead?
+      per_100_cols <- c(8, 10:27) #, 29:30)
+      # to get common name for tables
+      stats_per100 <- totals_tbl
+      stats_per100[per_100_cols] <- map(totals_tbl[per_100_cols],
+                                         function(x) 100*x/totals_tbl$poss)
+      # need to map to numeric??
     } else {
       season_type <- "Regular+Season"
+      url_totals <- construct_nba_url(year, season_type, 20, "Totals", "Base")
+      totals_json <- get_nba_stats_json(url_totals)
+      stats_totals <- nba_json2df(totals_json)
+      
+      url_per100 <- construct_nba_url(year, season_type, 20, "Per100Possessions", "Base")
+      per100_json <- get_nba_stats_json(url_per100)
+      stats_per100 <- nba_json2df(per100_json)
+      
+      # Overwrite per 100 minutes with total minutes
+      stats_per100$min <- stats_totals$min
+      
+      # is there a way to do this with names without listing all of them out?
+      # does this need to be 6-34??
+      cols <- c(6:33)
+      stats_per100[, cols] <-
+        map(stats_per100[, cols], function(x)
+          as.numeric(as.character(x)))
     }
-    url_totals <- construct_nba_url(year, season_type, 20, "Totals", "Base")
-    totals_json <- get_nba_stats_json(url_totals)
-    stats_totals <- nba_json2df(totals_json)
-    
-    url_per100 <- construct_nba_url(year, season_type, 20, "Per100Possessions", "Base")
-    per100_json <- get_nba_stats_json(url_per100)
-    stats_per100 <- nba_json2df(per100_json)
-    
-    # Overwrite per 100 minutes with total minutes
-    stats_per100$min <- stats_totals$min
-    
-    # is there a way to do this with names without listing all of them out?
-    # does this need to be 6-34??
-    cols <- c(6:33)
-    stats_per100[, cols] <-
-      map(stats_per100[, cols], function(x)
-        as.numeric(as.character(x)))
     ## OR stats[, cols] <- as.numeric(as.character(unlist(stats[, cols])))
     stats_per100$min <- round(stats_per100$min, 2)
     stats_per100 %<>% dplyr::filter(min >= minutes_limit)
     
-    dre_stats <- nba_dre(stats_per100)
+    dre_stats <- nba_dre(stats_per100) %>% ungroup()
     
     lg_ts <- get_lg_ts(dre_stats, year = year)$lg_ts
     lg_efg <- get_lg_efg(dre_stats)$lg_efg
@@ -163,7 +211,6 @@ get_gleague_dre_stats <-
       mutate(
         efg = 100.0 * (fgm + 0.5 * fg3m) / fga,
         rel_efg = 100.0 * (efg / lg_efg),
-        # / lg_efg,
         stk = blk + stl
       )
     if (year >= 2019) {
@@ -199,6 +246,8 @@ get_gleague_dre_stats <-
     dre_stats$rel_efg <- round(dre_stats$rel_efg, 2)
     dre_stats$ts <- round(dre_stats$ts, 2)
     dre_stats$rel_ts <- round(dre_stats$rel_ts, 2)
+    dre_stats$stk <- round(dre_stats$stk, 2)
+    dre_stats$plus_minus <- round(dre_stats$plus_minus, 2)
     
     if (save_dre) {
       write.csv(
