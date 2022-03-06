@@ -5,8 +5,14 @@ library(readr)
 # only pick out necessary tidyverse packages
 library(dplyr)
 library(magrittr)
-library(progress)
 library(httr)
+library(googlesheets4)
+
+gdrive_upload <- function(dre, sheet_id, client_secret) {
+  # start over here
+  gs4_auth(path = client_secret)
+  sheet_write(data = dre, ss = sheet_id, sheet = 1)
+}
 
 get_nba_stats_json <- function(url) {
   headers <- c(
@@ -268,8 +274,17 @@ get_gleague_dre_stats <-
 args <- commandArgs(trailingOnly = T)
 
 if (length(args) > 1) {
-  print(args)
-  year <- as.integer(format(Sys.Date(), "%Y"))
-  print(year)
-  dre_stats <- get_gleague_dre_stats(year, save_dre = T)
+  #app_email = args[1]
+  sheet_id = args[1]
+  #api_key = args[3]
+  client_secret = args[2]
+  # hard code for now
+  year <- 2021
+  print("Got the args")
+  dre_stats <- get_gleague_dre_stats(year, save_dre = F)
+  print("Got DRE")
+  gdrive_upload(dre_stats, sheet_id = sheet_id, client_secret = client_secret)
+  print("uploaded to drive")
 }
+
+# need to figure out how to run it as a script and as the year so can do it via GH actions

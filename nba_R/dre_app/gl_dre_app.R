@@ -1,4 +1,5 @@
 library(shiny)
+library(googlesheets4)
 # save data when year is done so it can be pulled from there instead of re-calling the 
 # functions over and over
 # REMEMBER TO RE-PUBLISH AFTER MAKING ANY CHANGES
@@ -39,7 +40,7 @@ ui <- fluidPage(
       ),
 			p(HTML("<b>STK</b>: "), "Stk is stocks aka blocks plus steals, and is on a per 100 possession basis instead of a
 				percentage basis."),
-			p("Last updated: 12/12/21")
+			p("Last updated: 2/24/22")
 			), 
 			selectInput("Year",
 				label = "Choose season, where year corresponds to year the season started, eg 2019 means the 2019-20 season.",
@@ -66,15 +67,26 @@ ui <- fluidPage(
 
 # Server logic
 server <- function(input, output) {
-	output$view <- renderDataTable({
-	  #get_gleague_dre_stats(as.numeric(input$Year), save_dre = T)
-		read.csv(
-		  paste0("./data/nbadl_dre_", as.character(input$Year), "-", substr(as.character(as.integer(input$Year)+1), 3, 4), ".csv")
-		  ) %>%
-	    dplyr::arrange(desc(dre)) %>% 
-		  dplyr::filter(min > input$Minutes, between(age, input$Age[1], input$Age[2]))
-	})
-	}
+  # future:
+  # gs4_deauth()
+  # sheet id is year-specific (for now)
+  # range_read(ss = sheet_id, sheet = 1)
+  
+  gs4_deauth()
+  sheet_id = Sys.getenv(paste0("sheet_id_2022"))
+  output$view <- renderDataTable({
+    range_read(ss = sheet_id, sheet = 1) %>%
+      dplyr::arrange(desc(dre)) %>% 
+      dplyr::filter(min > input$Minutes, between(age, input$Age[1], input$Age[2]))
+  })
+#  output$view <- renderDataTable({
+#		read.csv(
+#		  paste0("./data/nbadl_dre_", as.character(input$Year), "-", substr(as.character(as.integer(input$Year)+1), 3, 4), ".csv")
+#		  ) %>%
+#	    dplyr::arrange(desc(dre)) %>% 
+#		  dplyr::filter(min > input$Minutes, between(age, input$Age[1], input$Age[2]))
+#	})
+}
 
 
 # Run app
