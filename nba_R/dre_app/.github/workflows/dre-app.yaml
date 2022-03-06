@@ -1,0 +1,26 @@
+name: DRE Shiny app
+
+on: push
+#  schedule:
+#    cron: 0 6 * 1,2,3,10 0
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env: 
+      GARGLE_PASSWORD: ${{ secrets.GARGLE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: r-lib/actions/setup-r@master
+      - name: Install packages
+        run: |
+          R -e 'install.packages("jsonlite")' 
+          R -e 'install.packages("readr")'
+          R -e 'install.packages("stringr")'
+          R -e 'install.packages("purrr")'
+          R -e 'install.packages("dplyr")'
+          R -e 'install.packages("magrittr")'
+          R -e 'install.packages("httr")'
+          R -e 'install.packages("googlesheets4")'
+      - name: Run DRE script
+        run: Rscript dre_calc.R ${{ secrets.SHEET_ID_2022 }} ${{ secrets.CLIENT_BLOB }}
